@@ -1,0 +1,49 @@
+import rtconfig
+import sys
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+
+# The set of source files associated with this SConscript file.
+src = Split("""
+    CMSIS/CM3/CoreSupport/core_cm3.c
+    emlib/EFM32GG/Source/system_efm32gg.c""")
+
+src += Glob('emlib/src/*.c')
+
+# starupt scripts for each EFM32 family
+startup_scripts = {}
+startup_scripts['TinyGecko'] = 'startup_efm32tg.s'
+startup_scripts['Gecko'] = 'startup_efm32.s'
+startup_scripts['Giant Gecko'] = 'startup_efm32gg.s'
+
+# linker scripts for each EFM32 family
+linker_scripts = {}
+linker_scripts['TinyGecko'] = 'efm32tg.ld'
+linker_scripts['Gecko'] = 'efm32g.ld'
+linker_scripts['Giant Gecko'] = 'efm32gg.ld'
+
+if rtconfig.CROSS_TOOL == 'gcc':
+    startup_scripts[rtconfig.EFM32_FAMILY] = 'CMSIS/CM3/DeviceSupport/EnergyMicro/EFM32/startup/cs3/' + startup_scripts[rtconfig.EFM32_FAMILY]
+    linker_scripts[rtconfig.EFM32_FAMILY] = cwd + '/CMSIS/CM3/DeviceSupport/EnergyMicro/EFM32/startup/cs3/' + linker_scripts[rtconfig.EFM32_FAMILY]
+elif rtconfig.CROSS_TOOL == 'keil':
+    startup_scripts[rtconfig.EFM32_FAMILY] = 'emlib/EFM32GG/Source/ARM/' + startup_scripts[rtconfig.EFM32_FAMILY]
+    linker_scripts[rtconfig.EFM32_FAMILY] = cwd + '/emlib/EFM32GG/Source/ARM/' + linker_scripts[rtconfig.EFM32_FAMILY]
+elif rtconfig.CROSS_TOOL == 'iar':
+    startup_scripts[rtconfig.EFM32_FAMILY] = 'emlib/EFM32GG/Source/GCC/' + startup_scripts[rtconfig.EFM32_FAMILY]
+    linker_scripts[rtconfig.EFM32_FAMILY] = cwd + '/emlib/EFM32GG/Source/IAR/' + linker_scripts[rtconfig.EFM32_FAMILY]
+
+src = src + [startup_scripts[rtconfig.EFM32_FAMILY]]
+if rtconfig.PLATFORM == 'gcc':
+    src.append('CMSIS/CM3/DeviceSupport/EnergyMicro/EFM32/startup/cs3/start_gcc.S')
+
+# include head file
+path = [cwd + '/emlib/inc',
+    cwd + '/emlib/EFM32GG/Include',   
+    cwd + '/CMSIS/CM3/CoreSupport']
+
+CPPDEFINES = [rtconfig.EFM32_TYPE]
+group = DefineGroup('EFM32_StdPeriph', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')
